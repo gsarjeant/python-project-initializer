@@ -26,7 +26,7 @@ If the validation passes, then it will configure a python development environmen
 .EXAMPLE
 Add-PythonScaffolding.ps1
 .EXAMPLE
-Add-PythonScaffolding.ps1 -TargetDir=C:\MyPythonProject -PythonVersion=C:\Python27\bin\python -PylintVersion=1.9.3
+Add-PythonScaffolding.ps1 -TargetDir C:\MyPythonProject -PythonVersion C:\Python27\python.exe -PylintVersion 1.9.3
 .PARAMETER TargetDir
 The directory in which to initialize the python environment. If unspecified, the current directory is used. 
 .PARAMETER PythonVersion
@@ -37,6 +37,14 @@ The version of pylint to install. If unspecified, the latest version is installe
 The version of pytest to install. If unspecified, the latest version is installed.
 .PARAMETER CoverageVersion
 The version of coverage to install. If unspecified, the latest version is installed.
+.LINK
+https://virtualenv.pypa.io/en/stable/
+.LINK
+https://www.pylint.org/
+.LINK
+https://docs.pytest.org/en/latest/
+.LINK
+https://coverage.readthedocs.io/en/coverage-4.5.1a/
 #>
 param(
     [String] $TargetDir,
@@ -76,10 +84,10 @@ Function Add-PythonScaffolding{
     }
 
     # Call the commands and verify that they work
-    Write-Host($VirtualenvCommand)
-    Write-Host($PylintCommand)
-    Write-Host($PytestCommand)
-    Write-Host($CoverageCommand)
+    Invoke-Expression($VirtualenvCommand)
+    Invoke-Expression($PylintCommand)
+    Invoke-Expression($PytestCommand)
+    Invoke-Expression($CoverageCommand)
 
     # Create requirements.txt
 
