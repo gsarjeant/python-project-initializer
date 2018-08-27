@@ -38,16 +38,10 @@ The version of pytest to install. If unspecified, the latest version is installe
 .PARAMETER CoverageVersion
 The version of coverage to install. If unspecified, the latest version is installed.
 .LINK
-https://virtualenv.pypa.io/en/stable/
-.LINK
-https://www.pylint.org/
-.LINK
-https://docs.pytest.org/en/latest/
-.LINK
-https://coverage.readthedocs.io/en/coverage-4.5.1a/
+https://github.com/gsarjeant/python-project-initializer
 #>
 param(
-    [String] $TargetDir,
+    [String] $TargetDir=(Get-Location).toString(),
     [String] $PythonVersion,
     [String] $PylintVersion,
     [String] $PytestVersion,
@@ -98,8 +92,121 @@ Function Add-PythonScaffolding{
     # Put VSCode integration in place
 }
 
+# There's a fair amount of logic here, so I'm splitting it out into its own function
+Function Validate-Python{
+    [Boolean] $PythonValid = $true
+
+    Write-Host("Ensuring that python is installed")
+    # Make sure that python is installed
+    if($PythonVersion){
+        # If a specific version of python was requested, look for that version
+        $msg = "Specific python requested: $PythonVersion`n"
+        $msg += "Verifying that $PythonVersion exists."
+        Write-Host($msg)
+
+        if(-not (Test-Path($PythonVersion))){
+            $PythonValid = $false
+
+            $msg = "ERROR: The specified version of python is not installed"
+            $msg += "    $PythonVersion"
+            Write-Error($msg)
+        }
+    } else {
+        # If no specific version of python was requested, check the registry
+        # to ensure that python was installed
+        $msg = "Python version not specified. Using system python.`n"
+        $msg += "Verifying that python is installed."
+
+        # NOTE: HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* lists information
+        #       for all installed apps that windows knows about
+        # NOTE: Python 3 installs a bunch of things, so you'll get more than one response
+        #       for python 3
+        $UninstallKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        $InstalledPythonList = Get-ItemProperty($UninstallKey) | Where-Object { $_.Publisher -eq "Python Software Foundation"}
+        if($InstalledPythonList.Length -eq 0){
+            # No python versions were found
+            $PythonValid = $false
+
+            $msg = "ERROR: Python is not installed on this system. Please install python and try again."
+            Write-Error($msg)
+         }
+    }
+
+    return $PythonValid
+}
+
+Function Validate-Git{
+    [Boolean] $GitValid = $true
+
+    Write-Host("Ensuring that git is installed")
+    # Make sure that git is installed
+
+    # NOTE: HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* lists information
+    #       for all installed apps that windows knows about
+    $UninstallKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    $InstalledGitList = Get-ItemProperty($UninstallKey) | Where-Object { $_.DisplayName -Match "^Git\ version"}
+    if($InstalledGitList.Length -eq 0){
+        # No python versions were found
+        $GitValid = $false
+
+        $msg = "ERROR: Git is not installed on this system. Please install git and try again."
+        Write-Error($msg)
+    }
+
+    return $GitValid
+}
+
+Function Validate-Virtualenv{
+    $VitualenvValid = $true
+    $VirtualenvQuery = "pip --disable-pip-version-check show virtualenv"
+
+    Write-Host("Ensuring that virtualenv is installed")
+
+    $VirtualenvInfo = Invoke-Expression($VirtualenvQuery)
+
+    if($VirtualenvInfo.Length -eq 0){
+        $VirtualenvValid = $false
+
+        $msg = "Virtualenv is not installed on this system. Please install virtualenv and try again."
+        Write-Error($msg)
+    }
+    return $VirtualenvValid
+}
+
 Function Validate-Prereqs{
-    return $true
+    #$PSCommandPath
+    #Contains the full path and file name of the script that is being run. 
+    #This variable is valid in all scripts.
+    [Boolean] $PrereqsValid = $true
+
+    [String] $CommandDir = Split-Path -Path $PSCommandPath
+
+    # Ensure that $TargetDir isn't this project's directory
+    Write-Host("Ensuring we aren't running against this script's parent directory")
+    if($TargetDir -eq $CommandDir){
+        $PrereqsValid = $false
+
+        $msg = "ERROR: Script should not be run against its own directory.`n"
+        $msg += "    Run it against a python project directory."
+        Write-Error($msg)
+    }
+
+    # Validate that Python is installed
+    if( -not(Validate-Python)) {
+        $PrereqsValid -eq $false
+    }
+
+    # Validate that git is installed
+    if( -not(Validate-Git)) {
+        $PrereqsValid -eq $false
+    }
+
+    # Validate that virtualenv is installed
+    if( -not(Validate-Virtualenv)) {
+        $PrereqsValid -eq $false
+    }
+
+    return $PrereqsValid
 }
 
 ############################################################################
@@ -109,7 +216,18 @@ Function Validate-Prereqs{
 # Project Directory
 # Python version
 
+if([string]::IsNullOrEmpty($TargetDir)){
+    Write-Host "No target dir"
+    $TargetDir = (Get-Location).toString()
+} else {
+    Write-Host("Target dir: $TargetDir")
+}
+
+
 if (Validate-Prereqs){
-    Add-PythonScaffolding
+    Write-Host("Nice prereqs")
+    #Add-PythonScaffolding
+} else {
+    Write-Host("Bad prereqs")
 }
 
