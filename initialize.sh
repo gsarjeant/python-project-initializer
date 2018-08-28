@@ -88,10 +88,16 @@ validate-python(){
     fi
 }
 
+# Ensure that pip is installed
+validate-pip(){
+  # Nothing fancy here. We can just call "which virtualenv" and piggyback off the return code.
+  which pip >/dev/null
+}
+
 # Ensure that virtualenv is installed
 validate-virtualenv(){
-  # Nothing fancy here. We can just call "which virtualenv" and piggyback off the return code.
-  which virtualenv >/dev/null
+  # Nothing fancy here. We can just call "pip show virtualenv" and piggyback off the return code.
+  pip show virtualenv >/dev/null
 }
 
 # Ensure that git is installed
@@ -114,24 +120,45 @@ validate-prereqs(){
     validate-python
     PYTHON_RESULT=$?
 
-    # validate-virtualenv and validate-git will not print messages on failure
+    # The functions below will not print messages on failure
     # So we need to print error messages here if they fail
+
+    validate-pip
+    PIP_RESULT=$?
+    if (( PIP_RESULT != 0 )); then
+        echo "ERROR: pip was not found. Please install pip before proceeding."
+    fi
 
     validate-virtualenv
     VIRTUALENV_RESULT=$?
     if (( VIRTUALENV_RESULT != 0 )); then
-        echo "ERROR: virtualenv was not found"
+        echo "ERROR: virtualenv was not found. Please install virtualenv before proceeding."
     fi
 
     validate-git
     GIT_RESULT=$?
     if (( GIT_RESULT != 0 )) ; then
-        echo "ERROR: git was not found."
+        echo "ERROR: git was not found. Please install git before proceeding."
     fi
 
     # Add up all the return values and return the result.
-    return $(( TARGETDIR_RESULT + PYTHON_RESULT + VIRTUALENV_RESULT + GIT_RESULT))
+    return $(( TARGETDIR_RESULT + PYTHON_RESULT + PIP_RESULT + VIRTUALENV_RESULT + GIT_RESULT))
 }
+
+function initialize-virtualenv(){
+    echo "Creating python virtualenv in ${TARGET_DIR}."
+    echo "Using python at ${PYTHON_VERSION}."
+
+    # Create a virtualenv in ${TARGET_DIR}/.env
+    # I won't redirect the output for now so we can see it.
+    # The function will return the return value of the virtualenv command
+    # (so we can test for errors).
+
+    # NOTE: This command works with python2.
+    #       I'll generalize for python3 later, but python2 is my current concern
+    $PYTHON_VERSION -m virtualenv "${TARGET_DIR}/.env"
+}
+
 
 ######################################################################################
 # Script execution
@@ -192,6 +219,18 @@ if (( VALIDATION_RESULT == 0 )) ; then
     echo "Pylint version: ${PYLINT_VERSION}"
     echo "Pytest version: ${PYTEST_VERSION}"
     echo "Coverage version: ${COVERAGE_VERSION}"
+
+    # Initialize the directory as a python project.
+
+    # Create a virtualenv
+    initialize-virtualenv
+    VIRTUALENV_RESULT=$?
+    if (( VIRTUALENV_RESULT != 0 )) ; then
+        # Something went wrong creating the virtualenv.
+	# Print an error message and exit nonzer`o.
+	echo "ERROR: Failed to create virtualenv."
+	exit 1
+    fi
 else
     # Print out a generic error message and quit
     echo "ERROR: Validation errors detected. Please correct before proceeding."
