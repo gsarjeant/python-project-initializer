@@ -23,6 +23,25 @@ usage(){
     " | column -t -s ";"
 }
 
+# The target directory must:
+#    - exist
+#    - not be this project's root directory
+validate-targetdir(){
+# First, see if targetdir was passed in (i.e. TARGET_DIR is set)
+    # If it wasn't, then set it to the current directory
+    if [ -n ${TARGET_DIR+x} ] ; then
+        echo "Target dir not set. Setting to current directory"
+        TARGET_DIR=$PWD
+    fi
+
+    echo "Target dir set to ${TARGET_DIR}"
+
+    # Check whether TARGET_DIR exists after setting it and return the result
+    # (true if TAARGET_DIR exists, false otherwise)
+    [ -d "${TARGET_DIR}" ]
+
+    # Make sure that TARGET_DIR is not this script's parent directory
+}
 ######################################################################################
 # Script execution
 ######################################################################################
@@ -66,6 +85,8 @@ done
 
 # remove all arguments that were handled by getopts from $@
 shift $((OPTIND - 1))
+
+validate-targetdir
 
 echo "Target dir: ${TARGET_DIR}"
 echo "Python version: ${PYTHON_VERSION}"
