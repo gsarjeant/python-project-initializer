@@ -142,7 +142,12 @@ validate-prereqs(){
     fi
 
     # Add up all the return values and return the result.
-    return $(( TARGETDIR_RESULT + PYTHON_RESULT + PIP_RESULT + VIRTUALENV_RESULT + GIT_RESULT))
+    return $(( TARGETDIR_RESULT + 
+               PYTHON_RESULT +
+	       PIP_RESULT +
+	       VIRTUALENV_RESULT +
+	       GIT_RESULT
+	     ))
 }
 
 function initialize-virtualenv(){
@@ -159,7 +164,30 @@ function initialize-virtualenv(){
     $PYTHON_VERSION -m virtualenv "${TARGET_DIR}/.env"
 }
 
+# Install required test framework modules in the virtualenv
+function initialize-modules(){
+    echo "Activating virtualenv"
+    source "${TARGET_DIR}/.env/bin/activate"
 
+    echo "Installing test framework modules in the virtualenv with pip."
+    pip install pylint
+    pip install git-pylint-commit-hook
+    pip install pytest
+    pip install coverage
+}
+
+# Copy the pre-commit hook into place and set it executable.
+# For now, being lazy and assuming TARGET_DIR:
+#     - is a git repo
+#     - doesn't already have a pre-commit hook
+#
+# Cleanup to come.
+function copy-pre-commit-hook(){
+    echo "Moving pre-commit hook into place."
+    MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+    cp "${MY_DIR}/pre-commit" "${TARGET_DIR}/.git/hooks"
+    chmod 0700 "${TARGET_DIR}/.git/hooks"
+}
 ######################################################################################
 # Script execution
 ######################################################################################
@@ -228,9 +256,15 @@ if (( VALIDATION_RESULT == 0 )) ; then
     if (( VIRTUALENV_RESULT != 0 )) ; then
         # Something went wrong creating the virtualenv.
 	# Print an error message and exit nonzer`o.
-	echo "ERROR: Failed to create virtualenv."
-	exit 1
+        echo "ERROR: Failed to create virtualenv."
+        exit 1
     fi
+
+    # Install the test modules in the virtualenv
+    initialize-modules
+    
+    # Move the pre-commit hook into place
+    copy-pre-commit-hook
 else
     # Print out a generic error message and quit
     echo "ERROR: Validation errors detected. Please correct before proceeding."

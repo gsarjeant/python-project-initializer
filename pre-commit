@@ -1,0 +1,4 @@
+#! /bin/bash
+
+# Call the pylint pre-commit hook from the installed module
+git-pylint-commit-hook
