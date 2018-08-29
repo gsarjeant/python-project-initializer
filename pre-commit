@@ -23,19 +23,19 @@ for STAGED_FILE in "${STAGED_FILES[@]}" ; do
 
     case $EXT in
         py)
-        # python file. attempt to compile it
-        # Mostly redundant with pylint, but this will ensure we catch any
-        # syntax errors.
+            # python file. attempt to compile it
+            # Mostly redundant with pylint, but this will ensure we catch any
+            # syntax errors.
             echo "Compiling python file: ${STAGED_FILE}"
             python -m py_compile "${STAGED_FILE}"
             if (( $? != 0 )) ; then
                 RESULT=1
             fi
-        ;;
+            ;;
         *)
-        # unknown/untested extension. do nothing
+            # unknown/untested extension. do nothing
             echo "No validation for file: ${STAGED_FILE}"
-        ;;
+            ;;
     esac
 done
 
