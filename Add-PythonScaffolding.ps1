@@ -225,9 +225,8 @@ if([string]::IsNullOrEmpty($TargetDir)){
 
 
 if (Validate-Prereqs){
-    Write-Host("Nice prereqs")
-    #Add-PythonScaffolding
+    Add-PythonScaffolding
 } else {
-    Write-Host("Bad prereqs")
+    Write-Host("Prerequisites not satisfied. Please correct any errors noted above and try again.")
 }
 

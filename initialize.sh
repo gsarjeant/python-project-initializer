@@ -52,7 +52,7 @@ validate-targetdir(){
     MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
     if [[ "$TARGET_DIR" == "$MY_DIR" ]] ; then
-	TARGET_DIR_VALID=1
+    TARGET_DIR_VALID=1
         echo "ERROR: Target directory is this script's directory"
     fi
 
@@ -64,27 +64,27 @@ validate-targetdir(){
 validate-python(){
     if [[ -z "$PYTHON_VERSION" ]] ; then
         # No python version was specified.
-	# Try to find the system python (`which python`) and use it if it exists.
+        # Try to find the system python (`which python`) and use it if it exists.
         echo "No python version specified. Using system python."
-	PYTHON_VERSION=$( which python )
-	PYTHON_INSTALLED=$?
+        PYTHON_VERSION=$( which python )
+        PYTHON_INSTALLED=$?
 
-	if (( $PYTHON_INSTALLED != 0 )) ; then
+        if (( $PYTHON_INSTALLED != 0 )) ; then
             # `which python` returned an error. Python is not installed (or at least isn't on the PATH).
-	    # Print an error message and return non-zero
+            # Print an error message and return non-zero
             echo "ERROR: python could not be found. Please ensure that python is installed and is in the PATH."
-	    return 1
-	fi
+            return 1
+        fi
     else
         # The user requested a specific python.
-	# Verify that it exists.
-	if [[ ! -f "$PYTHON_VERSION" ]] ; then
-	    # The requested version of python doesn't exist.
-	    # Print an error message and exit
-	    echo "ERROR: The specified version of python could not be found."
-	    echo "       ${PYTHON_VERSION}"
-	    return 1
-	fi
+        # Verify that it exists.
+        if [[ ! -f "$PYTHON_VERSION" ]] ; then
+            # The requested version of python doesn't exist.
+            # Print an error message and exit
+            echo "ERROR: The specified version of python could not be found."
+            echo "       ${PYTHON_VERSION}"
+            return 1
+        fi
     fi
 }
 
@@ -144,10 +144,10 @@ validate-prereqs(){
     # Add up all the return values and return the result.
     return $(( TARGETDIR_RESULT + 
                PYTHON_RESULT +
-	       PIP_RESULT +
-	       VIRTUALENV_RESULT +
-	       GIT_RESULT
-	     ))
+               PIP_RESULT +
+               VIRTUALENV_RESULT +
+               GIT_RESULT
+            ))
 }
 
 function initialize-virtualenv(){
@@ -223,12 +223,12 @@ while getopts "hd:p:l:t:c:" OPTION; do
 
     case $OPTION in
         h) usage; exit 0;;
-	d) TARGET_DIR="$OPTARG";;
-	p) PYTHON_VERSION="$OPTARG";;
-	l) PYLINT_VERSION="$OPTARG";;
-	t) PYTEST_VERSION="$OPTARG";;
-	c) COVERAGE_VERSION="$OPTARG";;
-	*) echo "Unexpected argument ${OPTION}" ; usage ; exit 1;;
+        d) TARGET_DIR="$OPTARG";;
+        p) PYTHON_VERSION="$OPTARG";;
+        l) PYLINT_VERSION="$OPTARG";;
+        t) PYTEST_VERSION="$OPTARG";;
+        c) COVERAGE_VERSION="$OPTARG";;
+        *) echo "Unexpected argument ${OPTION}" ; usage ; exit 1;;
     esac
 done
 
@@ -255,7 +255,7 @@ if (( VALIDATION_RESULT == 0 )) ; then
     VIRTUALENV_RESULT=$?
     if (( VIRTUALENV_RESULT != 0 )) ; then
         # Something went wrong creating the virtualenv.
-	# Print an error message and exit nonzer`o.
+    # Print an error message and exit nonzer`o.
         echo "ERROR: Failed to create virtualenv."
         exit 1
     fi
