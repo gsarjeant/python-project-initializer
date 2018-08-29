@@ -52,7 +52,7 @@ validate-targetdir(){
     MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
     if [[ "$TARGET_DIR" == "$MY_DIR" ]] ; then
-    TARGET_DIR_VALID=1
+        TARGET_DIR_VALID=1
         echo "ERROR: Target directory is this script's directory"
     fi
 
