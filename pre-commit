@@ -26,7 +26,7 @@ for STAGED_FILE in "${STAGED_FILES[@]}" ; do
 	    # python file. attempt to compile it
 	    # Mostly redundant with pylint, but this will ensure we catch any
 	    # syntax errors.
-	    echo "Compiling python file: ${STAGED_FILE}"
+            echo "Compiling python file: ${STAGED_FILE}"
             python -m py_compile "${STAGED_FILE}"
             if (( $? != 0 )) ; then
                 RESULT=1
