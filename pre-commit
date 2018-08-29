@@ -1,4 +1,44 @@
 #! /bin/bash
 
+RESULT=0
+
 # Call the pylint pre-commit hook from the installed module
 git-pylint-commit-hook
+if (( $? != 0 )) ; then
+    RESULT=1
+fi
+
+# Loop through staged files and do whatever validation is appropriate for the extension.
+# Note: for now, just handling python files.
+
+# Build an array to store staged files
+mapfile -t STAGED_FILES < <( git diff --cached --name-status | awk '$1 != "D" { print $2 }' )
+
+# Iterate through staged files and do appropriate validation
+# based on file extension.
+for STAGED_FILE in "${STAGED_FILES[@]}" ; do
+    echo $STAGED_FILE
+
+    EXT="${STAGED_FILE##*.}"
+
+    case $EXT in
+        py)
+	    # python file. attempt to compile it
+	    # Mostly redundant with pylint, but this will ensure we catch any
+	    # syntax errors.
+	    echo "Compiling python file: ${STAGED_FILE}"
+            python -m py_compile "${STAGED_FILE}"
+            if (( $? != 0 )) ; then
+                RESULT=1
+            fi
+	    ;;
+        *)
+	    # unknown/untested extension. do nothing
+            echo "No validation for file: ${STAGED_FILE}"
+	    ;;
+    esac
+done
+
+# If nothing failed, we will exit 0 and the commit will proceed.
+# If any tests fail, we will exit 1 and block the commit.
+exit $RESULT
