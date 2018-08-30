@@ -93,7 +93,7 @@ Function Add-PythonScaffolding{
 }
 
 # There's a fair amount of logic here, so I'm splitting it out into its own function
-Function Validate-Python{
+Function Test-Python{
     [Boolean] $PythonValid = $true
 
     Write-Host("Ensuring that python is installed")
@@ -135,7 +135,7 @@ Function Validate-Python{
     return $PythonValid
 }
 
-Function Validate-Git{
+Function Test-Git{
     [Boolean] $GitValid = $true
 
     Write-Host("Ensuring that git is installed")
@@ -156,8 +156,8 @@ Function Validate-Git{
     return $GitValid
 }
 
-Function Validate-Virtualenv{
-    $VitualenvValid = $true
+Function Test-Virtualenv{
+    $VirtualenvValid = $true
     $VirtualenvQuery = "pip --disable-pip-version-check show virtualenv"
 
     Write-Host("Ensuring that virtualenv is installed")
@@ -173,7 +173,7 @@ Function Validate-Virtualenv{
     return $VirtualenvValid
 }
 
-Function Validate-Prereqs{
+Function Test-Prereqs{
     #$PSCommandPath
     #Contains the full path and file name of the script that is being run. 
     #This variable is valid in all scripts.
@@ -192,17 +192,17 @@ Function Validate-Prereqs{
     }
 
     # Validate that Python is installed
-    if( -not(Validate-Python)) {
+    if( -not(Test-Python)) {
         $PrereqsValid -eq $false
     }
 
     # Validate that git is installed
-    if( -not(Validate-Git)) {
+    if( -not(Test-Git)) {
         $PrereqsValid -eq $false
     }
 
     # Validate that virtualenv is installed
-    if( -not(Validate-Virtualenv)) {
+    if( -not(Test-Virtualenv)) {
         $PrereqsValid -eq $false
     }
 
@@ -224,7 +224,7 @@ if([string]::IsNullOrEmpty($TargetDir)){
 }
 
 
-if (Validate-Prereqs){
+if (Test-Prereqs){
     Add-PythonScaffolding
 } else {
     Write-Host("Prerequisites not satisfied. Please correct any errors noted above and try again.")
