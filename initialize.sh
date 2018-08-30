@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# NiOTE - I'm just using 1 as a universal nonzero return here for convenience.
+# NOTE - I'm just using 1 as a universal nonzero return here for convenience.
 #         I can put in more robust failure state reporting if needed later.
 
 ######################################################################################
@@ -26,6 +26,30 @@ usage(){
     " | column -t -s ";"
 }
 
+# Some one-liner functions. 
+# Yes, one-liner functions can be a bit silly, but is a bit opaque,
+# so the function names help explain what's going on.
+
+# Test whether a given file exists
+file-exists(){
+    if [[ -z "$1" ]] ; then
+        echo "ERROR: $FUNCNAME[0] requires one argument: the path to the file being tested."
+        false
+    else
+        [[ -f "$1" ]]
+    fi
+}
+
+# Test whether a given directory exists
+directory-exists(){
+    if [[ -z "$1" ]] ; then
+        echo "ERROR: $FUNCNAME[0] requires one argument: the path to the directory being tested."
+        false
+    else
+        [[ -d "$1" ]]
+    fi
+}
+
 # The target directory must:
 #    - exist
 #    - not be this project's root directory
@@ -42,7 +66,7 @@ validate-targetdir(){
 
     # Check whether TARGET_DIR exists after setting
     # If it doesn't, print a message and set the return value to 1
-    if [[ ! -d "$TARGET_DIR" ]] ; then
+    if ! directory-exists "$TARGET_DIR" ; then
         TARGET_DIR_VALID=1
         echo "ERROR: Target directory (${TARGET_DIR}) does not exist."
     fi	
@@ -78,7 +102,7 @@ validate-python(){
     else
         # The user requested a specific python.
         # Verify that it exists.
-        if [[ ! -f "$PYTHON_VERSION" ]] ; then
+        if ! file-exists "$PYTHON_VERSION" ; then
             # The requested version of python doesn't exist.
             # Print an error message and exit
             echo "ERROR: The specified version of python could not be found."
@@ -151,21 +175,28 @@ validate-prereqs(){
 }
 
 function initialize-virtualenv(){
-    echo "Creating python virtualenv in ${TARGET_DIR}."
-    echo "Using python at ${PYTHON_VERSION}."
+    if [[ -z "$1" ]] ; then
+        echo "ERROR: $FUNCNAME[0] requires one argument: the directory in which to create the virtualenv."
+        false
+    else
+        VIRTUALENV_DIR="$1"
 
-    # Create a virtualenv in ${TARGET_DIR}/.env
-    # I won't redirect the output for now so we can see it.
-    # The function will return the return value of the virtualenv command
-    # (so we can test for errors).
+        echo "Creating python virtualenv in ${VIRTUALENV_DIR}."
+        echo "Using python at ${PYTHON_VERSION}."
 
-    # NOTE: This command works with python2.
-    #       I'll generalize for python3 later, but python2 is my current concern
-    $PYTHON_VERSION -m virtualenv "${TARGET_DIR}/.env"
+        # Create a virtualenv in ${TARGET_DIR}/.env
+        # I won't redirect the output for now so we can see it.
+        # The function will return the return value of the virtualenv command
+        # (so we can test for errors).
+
+        # NOTE: This command works with python2.
+        #       I'll generalize for python3 later, but python2 is my current concern
+        $PYTHON_VERSION -m virtualenv "${VIRTUALENV_DIR}"
+    fi
 }
 
 # Install required test framework modules in the virtualenv
-function initialize-modules(){
+function install-modules(){
     echo "Activating virtualenv"
     source "${TARGET_DIR}/.env/bin/activate"
 
@@ -176,24 +207,87 @@ function initialize-modules(){
     pip install coverage
 }
 
-# Copy the pre-commit hook into place and set it executable.
-# For now, being lazy and assuming TARGET_DIR:
-#     - is a git repo
-#     - doesn't already have a pre-commit hook
-#
-# Cleanup to come.
-function copy-pre-commit-hook(){
-    echo "Moving pre-commit hook into place."
+# Main function to initialize project directory.
+# Calls helper functions above.
+function initialize-project(){
+    VIRTUALENV_DIR="${TARGET_DIR}/.env"
+    GIT_DIR="${TARGET_DIR}/.git"
+    GITIGNORE_FILE="${TARGET_DIR}/.gitignore"
+    PRE_COMMIT_HOOK_FILE="${TARGET_DIR}/.git/hooks/pre-commit"
+    REQUIREMENTS_TXT_FILE="${TARGET_DIR}/requirements.txt"
     MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-    cp "${MY_DIR}/pre-commit" "${TARGET_DIR}/.git/hooks"
-    chmod 0700 "${TARGET_DIR}/.git/hooks"
+
+    # Create a virtualenv if one doesn't already exist.
+    # This is a bit lazy. It's an all-or-nothing approach to virtualenv detection.
+    # If there's already a .env directory, then don't do any of the
+    # python environment initialization.
+    if directory-exists "$VIRTUALENV_DIR" ; then
+        # The target already has a virtualenv (or something in .env)
+        # Don't reinitialize it.
+        echo "WARNING: Skipping virtualenv initialization."
+        echo "         ${VIRTUALENV_DIR} already exists."
+    else
+        initialize-virtualenv "$VIRTUALENV_DIR"
+        VIRTUALENV_RESULT=$?
+        if (( VIRTUALENV_RESULT != 0 )) ; then
+            # Something went wrong creating the virtualenv.
+            # Print an error message and exit nonzero.
+            echo "ERROR: Failed to create virtualenv."
+            exit 1
+        fi
+
+        # Install the test modules in the virtualenv
+        install-modules
+
+        # Create a requirements.txt if one doesn't already exist
+        if file-exists $REQUIREMENTS_TXT_FILE ; then
+            echo "WARNING: Skipping requirements.txt creation."
+            echo "         ${REQUIREMENTS_TXT_FILE} already exists"
+        else
+            # Use 'pip freeze' to create the initial requirements.txt.
+            # This will allow others to install the exact versions of modules installed when initializing this project
+            cd "$TARGET_DIR"
+            pip freeze > requirements.txt
+        fi
+    fi
+    
+    # Move the pre-commit hook and .gitignore into place if the target dir is a git repo.
+    if directory-exists "$GIT_DIR" ; then
+        # Copy the hook in place if it's not already there
+        if file-exists "$PRE_COMMIT_HOOK_FILE" ; then
+            # There is an existing pre-commit hook. Be polite and don't overwrite it.
+            echo "WARNING: Skipping pre-commit hook copy."
+            echo "         Existing pre-commit hook detected at ${PRE_COMMIT_HOOK_FILE}"
+        else
+            # Copy the pre-commit hook into place.
+            echo "Moving pre-commit hook into place."
+            cp "${MY_DIR}/pre-commit" "${PRE_COMMIT_HOOK_FILE}"
+            chmod 0700 "${PRE_COMMIT_HOOK_FILE}"
+        fi
+
+        # Copy the .gitignore into place if it's not already there
+        if file-exists "$GITIGNORE_FILE" ; then
+            # There is an existing .gitignore. Be polite and don't overwrite it.
+            echo "WARNING: Skipping .gitignore copy."
+            echo "         Existing .gitignore detected at ${GITIGNORE_FILE}"
+        else
+            # Copy the pre-commit hook into place.
+            echo "Moving .gitignore into place."
+            cp "${MY_DIR}/target-gitignore" "${GITIGNORE_FILE}"
+        fi
+    else
+        # The target is not a git repo, so there's nowhere to copy the hook.
+        echo "${TARGET_DIR} is not a git repo. Not copying precommit hook or .gitignore."
+        echo "Rerun this script after running 'git init' to copy files in place"
+    fi
 }
+
 ######################################################################################
-# Script execution
+# Input argument processing
 ######################################################################################
 
-# The script allows short and long arguments, but use getopts to parse arguments.
-# getoprt only deals with short arguments, 
+# The script allows short and long arguments, but uses getopts to parse arguments.
+# getopt only deals with short arguments, 
 # so convert any long arguments to short arguments before evaluating
 
 # Create an array to hold args
@@ -212,10 +306,8 @@ for arg; do
     esac
 done
 
-# Update the input arguments ($@) with the revised (short-arg-only) version
-#printf 'args before update : '; printf '%q ' "$@"; echo
+# Update the input arguments with the revised (short-arg-only) version
 set -- "${args[@]}"
-#printf 'args after update  : '; printf '%q ' "$@"; echo
 
 # parse input arguments with getopts.
 while getopts "hd:p:l:t:c:" OPTION; do
@@ -235,36 +327,18 @@ done
 # remove all arguments that were handled by getopts from $@
 shift $((OPTIND - 1))
 
+######################################################################################
+# Script execution
+######################################################################################
+
 # Validate prerequisites
 validate-prereqs
 VALIDATION_RESULT=$?
 
 # If all prereqs are met, then initialize this directory as a python project
 if (( VALIDATION_RESULT == 0 )) ; then
-    # Just print out the input arguments for now.
-    echo "Target dir: ${TARGET_DIR}"
-    echo "Python version: ${PYTHON_VERSION}"
-    echo "Pylint version: ${PYLINT_VERSION}"
-    echo "Pytest version: ${PYTEST_VERSION}"
-    echo "Coverage version: ${COVERAGE_VERSION}"
-
     # Initialize the directory as a python project.
-
-    # Create a virtualenv
-    initialize-virtualenv
-    VIRTUALENV_RESULT=$?
-    if (( VIRTUALENV_RESULT != 0 )) ; then
-        # Something went wrong creating the virtualenv.
-    # Print an error message and exit nonzer`o.
-        echo "ERROR: Failed to create virtualenv."
-        exit 1
-    fi
-
-    # Install the test modules in the virtualenv
-    initialize-modules
-    
-    # Move the pre-commit hook into place
-    copy-pre-commit-hook
+    initialize-project
 else
     # Print out a generic error message and quit
     echo "ERROR: Validation errors detected. Please correct before proceeding."
